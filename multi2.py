@@ -45,7 +45,7 @@ def color_node(G, u, coloring):
         if color not in neighbour_colors:
             break
     coloring[u] = color
-    return u
+    return (u, color)
 
 def parallel_color(G, p):
     ''' Implementation of algorithm 1 from the research paper '''
@@ -55,10 +55,13 @@ def parallel_color(G, p):
     blocks = nodes_iter(Vp, min_blen)
 
     coloring = {}
+    ans = []
 
     for i in range(len(blocks)):
-        with Pool(p) as p1:
-            results = [p1.apply_async(func = color_node, args = (G, u, coloring,)) for u in blocks[i][i]]
+        p1 = Pool(p)
+        for u in blocks[i][i]:
+            (u, color) = (p1.apply_async(func = color_node, args = (G, u, coloring,))).get()
+            coloring[u] = color
     return coloring
     # Phase 2
 
