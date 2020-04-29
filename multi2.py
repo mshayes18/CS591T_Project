@@ -1,7 +1,9 @@
 from multiprocessing import Pool, Manager, Process
 import networkx as nx
+from networkx.algorithms.coloring.greedy_coloring import greedy_color
 import numpy as np
 import itertools
+import time
 
 def node_chunks(G, p):
     ''' Given a graph G of n nodes, and an integer p, split the set of vertices into p sets of 
@@ -16,7 +18,6 @@ def induce_subgraph(G, u, block):
     nodes = set(G.nodes) - set(block)
     nodes.add(u)
     return G.subgraph(nodes)
-
 
 def nodes_iter(Vp, p):
     ''' Given p chunks of nodes, order the vertices into an array, blocks, such that blocks[i]
@@ -41,7 +42,9 @@ def nodes_iter(Vp, p):
                 index_dic[i] = [chunk[i]]
             else:
                 index_dic[i] += [chunk[i]]
-    blocks.append(index_dic)
+    
+    if index_dic != {}:
+        blocks.append(index_dic)
     return blocks
 
 
@@ -67,7 +70,7 @@ def parallel_color(G, p):
     # Phase 1
     Vp = node_chunks(G, p)
     min_blen = min([len(block) for block in Vp])
-    blocks = nodes_iter(Vp, min_blen)
+    blocks = nodes_iter(Vp, p)
 
     coloring = {}
 
@@ -91,11 +94,191 @@ def parallel_color(G, p):
 
     for v in A:
         color_node(G, v, coloring)
-    return coloring
+    return coloring, len(A)
 
+def avg_degree(G):
+    ''' Find the average degree of a graph, G '''
+    sum_d = 0
+    for u in G.nodes:
+        sum_d += G.degree(u)
+    return sum_d / len(G.nodes)
 
 
 if __name__ == "__main__":
-    G = nx.gnp_random_graph(5, .5)
+    # We will test networkx's default greedy_color algorithm, that colors with a strategy
+    # of coloring highest degree vertices first against our parallelized implementation.
+    # The respective run-times and chromatic number that the algorithms return will be
+    # compared, while varying average degree and number of processors
+    # The number of conflicts in our algorithm will be analyzed as well
+
+    # 1 Processor
+    n = 100
+    prob = .1
+    p = 1
+    proc1_avg_deg = {}
+    proc1_runtime_parallel = {}
+    proc1_chrom_num_parallel = {}
+    proc1_num_conflicts = {}
+    proc1_runtime_greedy = {}
+    proc1_chrom_num_greedy = {}
+
+
+    while n < 1000:
+        while prob <= .6:
+            G = nx.gnp_random_graph(n, prob)
+            #print(
+            #    'Using a graph generated from G_', n, ',', prob, 'with average degree', avg_degree(G) 
+            #)
+            proc1_avg_deg[str(n) + ' ' str(prob)] = avg_degree(G)
+
+            start_time = time.process_time()
+            color_p, num_conflicts = parallel_color(G, p)
+            #print(
+            #    'The parallelized algorithm took', time.process_time() - start_time,
+            #    'seconds to run with', num_conflicts, 'conflicts and a chromatic number of',
+            #    max(color_p.values())
+            #    )
+            proc1_runtime_parallel[str(n) + ' ' str(prob)] = time.process_time() - start_time
+            proc1_num_conflicts[str(n) + ' ' str(prob)] = num_conflicts
+            proc1_chrom_num_parallel[str(n) + ' ' str(prob)] = max(color_p.values())
+
+            start_time = time.process_time()
+            color_g = greedy_color(G)
+            #print(
+            #    'Networkx greedy algorithm took', time.process_time() - start_time,
+            #    'seconds to run with a chromatic number of', max(color_g.values())
+            #    )
+            proc1_runtime_greedy[str(n) + ' ' str(prob)] = time.process_time() - start_time
+            proc1_chrom_num_greedy = max(color_g.values())
+
+            n += 100
+            prob += .1
+    
+    # 2 Processors
+    n = 100
+    prob = .1
     p = 2
-    print(parallel_color(G, p), G.edges)
+    proc2_avg_deg = {}
+    proc2_runtime_parallel = {}
+    proc2_chrom_num_parallel = {}
+    proc2_num_conflicts = {}
+    proc2_runtime_greedy = {}
+    proc2_chrom_num_greedy = {}
+
+
+    while n < 1000:
+        while prob <= .6:
+            G = nx.gnp_random_graph(n, prob)
+            #print(
+            #    'Using a graph generated from G_', n, ',', prob, 'with average degree', avg_degree(G) 
+            #)
+            proc2_avg_deg[str(n) + ' ' str(prob)] = avg_degree(G)
+
+            start_time = time.process_time()
+            color_p, num_conflicts = parallel_color(G, p)
+            #print(
+            #    'The parallelized algorithm took', time.process_time() - start_time,
+            #    'seconds to run with', num_conflicts, 'conflicts and a chromatic number of',
+            #    max(color_p.values())
+            #    )
+            proc2_runtime_parallel[str(n) + ' ' str(prob)] = time.process_time() - start_time
+            proc2_num_conflicts[str(n) + ' ' str(prob)] = num_conflicts
+            proc2_chrom_num_parallel[str(n) + ' ' str(prob)] = max(color_p.values())
+
+            start_time = time.process_time()
+            color_g = greedy_color(G)
+            #print(
+            #    'Networkx greedy algorithm took', time.process_time() - start_time,
+            #    'seconds to run with a chromatic number of', max(color_g.values())
+            #    )
+            proc2_runtime_greedy[str(n) + ' ' str(prob)] = time.process_time() - start_time
+            proc2_chrom_num_greedy = max(color_g.values())
+            
+            n += 100
+            prob += .1
+
+    # 4 Processors
+    n = 100
+    prob = .1
+    p = 4
+    proc4_avg_deg = {}
+    proc4_runtime_parallel = {}
+    proc4_chrom_num_parallel = {}
+    proc4_num_conflicts = {}
+    proc4_runtime_greedy = {}
+    proc4_chrom_num_greedy = {}
+
+
+    while n < 1000:
+        while prob <= .6:
+            G = nx.gnp_random_graph(n, prob)
+            #print(
+            #    'Using a graph generated from G_', n, ',', prob, 'with average degree', avg_degree(G) 
+            #)
+            proc4_avg_deg[str(n) + ' ' str(prob)] = avg_degree(G)
+
+            start_time = time.process_time()
+            color_p, num_conflicts = parallel_color(G, p)
+            #print(
+            #    'The parallelized algorithm took', time.process_time() - start_time,
+            #    'seconds to run with', num_conflicts, 'conflicts and a chromatic number of',
+            #    max(color_p.values())
+            #    )
+            proc4_runtime_parallel[str(n) + ' ' str(prob)] = time.process_time() - start_time
+            proc4_num_conflicts[str(n) + ' ' str(prob)] = num_conflicts
+            proc4_chrom_num_parallel[str(n) + ' ' str(prob)] = max(color_p.values())
+
+            start_time = time.process_time()
+            color_g = greedy_color(G)
+            #print(
+            #    'Networkx greedy algorithm took', time.process_time() - start_time,
+            #    'seconds to run with a chromatic number of', max(color_g.values())
+            #    )
+            proc4_runtime_greedy[str(n) + ' ' str(prob)] = time.process_time() - start_time
+            proc4_chrom_num_greedy = max(color_g.values())
+            
+            n += 100
+            prob += .1
+
+    # 6 Processors
+    n = 100
+    prob = .1
+    p = 6
+    proc6_avg_deg = {}
+    proc6_runtime_parallel = {}
+    proc6_chrom_num_parallel = {}
+    proc6_num_conflicts = {}
+    proc6_runtime_greedy = {}
+    proc6_chrom_num_greedy = {}
+
+
+    while n < 1000:
+        while prob <= .6:
+            G = nx.gnp_random_graph(n, prob)
+            #print(
+            #    'Using a graph generated from G_', n, ',', prob, 'with average degree', avg_degree(G) 
+            #)
+            proc6_avg_deg[str(n) + ' ' str(prob)] = avg_degree(G)
+
+            start_time = time.process_time()
+            color_p, num_conflicts = parallel_color(G, p)
+            #print(
+            #    'The parallelized algorithm took', time.process_time() - start_time,
+            #    'seconds to run with', num_conflicts, 'conflicts and a chromatic number of',
+            #    max(color_p.values())
+            #    )
+            proc6_runtime_parallel[str(n) + ' ' str(prob)] = time.process_time() - start_time
+            proc6_num_conflicts[str(n) + ' ' str(prob)] = num_conflicts
+            proc6_chrom_num_parallel[str(n) + ' ' str(prob)] = max(color_p.values())
+
+            start_time = time.process_time()
+            color_g = greedy_color(G)
+            #print(
+            #    'Networkx greedy algorithm took', time.process_time() - start_time,
+            #    'seconds to run with a chromatic number of', max(color_g.values())
+            #    )
+            proc6_runtime_greedy[str(n) + ' ' str(prob)] = time.process_time() - start_time
+            proc6_chrom_num_greedy = max(color_g.values())
+            
+            n += 100
+            prob += .1
