@@ -90,7 +90,6 @@ def parallel_color_strat(G, p, blocking):
     coloring = manager.dict()
 
     for i in range(len(batches)):
-        batches[i][1]
 
         jobs = [Process(target=color_node, args=(G, batches[i][j], coloring,)) for j in range(p)]
         _ = [proc.start() for proc in jobs]
