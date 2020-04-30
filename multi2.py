@@ -95,8 +95,6 @@ def parallel_color_strat(G, p, blocking):
         _ = [proc.start() for proc in jobs]
         _ = [proc.join() for proc in jobs]
     
-    print(len(coloring))
-    
     # Phase 2
     A = []
 
@@ -122,6 +120,7 @@ def avg_degree(G):
 
 
 def random(G, p):
+    '''Returns blocks in order, or random if the graph was generated independent of nodes'''
     k, m = divmod(len(G.nodes), p)
     chunks = [list(G.nodes)[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(p)]
     return chunks
