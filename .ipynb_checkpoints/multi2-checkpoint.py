@@ -91,9 +91,11 @@ def parallel_color_strat(G, p, blocking):
 
     for i in range(len(batches)):
 
-        jobs = [Process(target=color_node, args=(G, batches[i][j], coloring,)) for j in range(p)]
+        jobs = [Process(target=color_node, args=(G, batches[i][j], coloring,)) for j in range(len(batches[i]))]
         _ = [proc.start() for proc in jobs]
         _ = [proc.join() for proc in jobs]
+    
+    print(len(coloring))
     
     # Phase 2
     A = []
@@ -134,7 +136,6 @@ def descending_degree_chunks(G, p):
 
 def descending_degree_within(G, p):
     sorted_nodes = sorted(G, key=G.degree, reverse=True)
-    print(sorted_nodes)
     chunks = [[] for _ in range(p)]
     while (sorted_nodes):
         for i in range(p):
